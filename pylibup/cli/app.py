@@ -1,8 +1,8 @@
 from pathlib import Path
-from pylibup.client import PylibClient
+from pylibup.client import PylibClient, Github
 from pylibup.cli.base import *
 from pylibup.serializers import Yaml
-from pylibup.utils import to_path, get_parent_path
+from pylibup.utils import to_path, get_parent_path, exec_shell
 from typing import List
 
 repoCli = createCli(name = 'repo')
@@ -122,7 +122,45 @@ def publish_new_repo(
     except Exception as e:
         logger.error(e)
 
+@repoCli.command('push')
+def push_to_repo(
+    branch: Optional[str] = Option("main"),
+    commit: Optional[str] = Option("Updating"),
+    add_files: bool = Option(True, '--no-add'),
+    ):
+    cmd = f'cd {get_cwd()} && '
+    if add_files: cmd += 'git add . && '
+    cmd += f'git commit -m "{commit}" && git push -u origin {branch}'
+    exec_shell(cmd)
 
+
+@repoCli.command('release')
+def publish_release(
+    tag: Optional[str] = Option("v0.0.1"),
+    tag_message: Optional[str] = Option("Stable Release"),
+    release_name: Optional[str] = Option("Release v0.0.1"),
+    release_message: Optional[str] = Option("Stable Release"),
+    draft: bool = Option(False),
+    prerelease: bool = Option(False),
+    branch: Optional[str] = Option("main"),
+    push_first: bool = Option(True, '--no-push'),
+    github_token: Optional[str] = Option("", envvar="GITHUB_TOKEN")
+    ):
+    state = load_merged_states()
+    repo_name = state.get('repo')
+    if not repo_name:
+        logger.error('Unable to locate repo name in state.')
+        return
+    if push_first:
+        exec_shell(f'cd {get_cwd()} && git add . && git commit -m "{release_message}" && git push -u origin {branch}')
+    github_token = github_token or state.get('github_token', '')
+    github = Github(login_or_token=github_token)
+    repo = github.get_repo(repo_name)
+    rez = repo.create_git_tag_and_release(tag = tag, tag_message = tag_message, release_name= release_name, release_message= release_message, draft = draft, prerelease = prerelease)
+    logger(f'Created Release: {release_name}')
+    logger(rez)
+
+    
 
 @repoCli.command('meta')
 def display_meta(
