@@ -384,7 +384,7 @@ def get_metadata_template(github: Github, name: str, repo_user: str = None, priv
     metadata['setup'].update({
         'author': caller.name or repo_user,
         'email': caller.email,
-        'git_repo': f'{repo_user}/{name}',
+        'git_repo': f'{repo_user}',
         'pkg_name': name,
         'lib_name': kwargs.get('lib_name', name)
     })
