@@ -146,10 +146,17 @@ def push_to_repo(
     commit: Optional[str] = Argument("Updating"),
     branch: Optional[str] = Option("main"),
     add_files: bool = Option(True, '--no-add'),
+    reinstall: bool = Option(False),
     ):
     cmd = f'cd {get_cwd()} && '
     if add_files: cmd += 'git add . && '
     cmd += f'git commit -m "{commit}" && git push -u origin {branch}'
+    if reinstall: cmd += ' && pip install .'
+    exec_shell(cmd)
+
+@repoCli.command('reload', short_help = "Does a reinstall via pip install . within the cwd")
+def reload_pip_repo():
+    cmd = f'cd {get_cwd()} && pip install .'
     exec_shell(cmd)
 
 
