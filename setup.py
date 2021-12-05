@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 if sys.version_info.major != 3:
     raise RuntimeError("This package requires Python 3+")
 
-version = '0.0.1'
+version = '0.0.2'
 pkg_name = 'pylibup'
 gitrepo = 'trisongz/pylibup'
 root = Path(__file__).parent
@@ -26,7 +26,10 @@ args = {
     'install_requires': requirements,
     'long_description': root.joinpath('README.md').read_text(encoding='utf-8'),
     'entry_points': {
-        'console_scripts': ['pylibup = pylibup.cli:baseCli']
+        'console_scripts': [
+            'pylibup = pylibup.cli:baseCli',
+            'pylib = pylibup.cli:baseCli'
+        ]
     }
 }
 

@@ -4,6 +4,7 @@ from pylibup.cli.base import *
 from pylibup.serializers import Yaml
 from pylibup.utils import to_path, get_parent_path, exec_shell
 from typing import List
+import typer
 
 repoCli = createCli(name = 'repo')
 stateCli = createCli(name = 'state')
@@ -19,7 +20,7 @@ statefile = get_cwd('.pylibstate.yaml', posix=False)
 globalstate_dir = get_parent_path(__file__).joinpath('.pylibstate')
 globalstate_dir.mkdir(exist_ok=True)
 globalstatefile = globalstate_dir.joinpath('state.yaml')
-
+globalstate_ignore_keys = {'name', 'commit_msg', 'project_name', 'project_dir'}
 
 def load_global_state():
     if globalstatefile.exists(): return Yaml.loads(globalstatefile.read_text())
@@ -44,6 +45,7 @@ def save_global_state(overwrite_state: bool = False, **kwargs):
             kwargs = data
         else:
             kwargs.update({k:v for k,v in data.items() if v})
+    kwargs = {k:v for k,v in kwargs.items() if k not in globalstate_ignore_keys and v is not None}
     globalstatefile.write_text(Yaml.dumps(kwargs))
 
 def save_state(overwrite_state: bool = False, **kwargs):
@@ -101,6 +103,23 @@ def build_new_repo(
         logger.error(e)
 
 
+@repoCli.command('cleanup')
+def cleanup_repo(
+    force: bool = Option(False),
+    keep_dir: bool = Option(True),
+    ):
+    state = load_merged_states()
+    project_dir = state.get('project_dir', get_cwd())
+    logger.info(f'Planning to remove everything in {project_dir}')
+    if not force: force = typer.confirm("Are you sure you want to delete everything in this repo? There is no going back.", abort=True)
+    if keep_dir:
+        logger.info(f'Removing all files in {project_dir}/*')
+        exec_shell(f'rm -rf {project_dir}/*')
+    else:
+        logger.info(f'Removing directory {project_dir}')
+        exec_shell(f'rm -rf {project_dir}')
+
+
 @repoCli.command('publish')
 def publish_new_repo(
     config_file: Optional[str] = Argument(get_cwd('metadata.yaml')),
@@ -124,8 +143,8 @@ def publish_new_repo(
 
 @repoCli.command('push')
 def push_to_repo(
+    commit: Optional[str] = Argument("Updating"),
     branch: Optional[str] = Option("main"),
-    commit: Optional[str] = Option("Updating"),
     add_files: bool = Option(True, '--no-add'),
     ):
     cmd = f'cd {get_cwd()} && '

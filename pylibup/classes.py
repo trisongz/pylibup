@@ -166,6 +166,9 @@ class PylibConfigData(BaseCls):
     @property
     def needs_ipyirc(self):
         return self.wkflw.pypi_publish
+    
+    def should_add_to_commit(self, filename: str):
+        return not any(i in filename or filename in i for i in self.gitignores)
 
     def get_secrets(self):
         data = {}
@@ -196,7 +199,7 @@ class PylibConfig:
     def set_working_project(self, project_name: str = None, project_dir: str = None):
         self.current_dir = to_path(project_dir) if project_dir else Path.cwd()
         if not project_name: project_name = self.current_dir.stem
-        self.working_dir = self.current_dir.joinpath(project_name)
+        self.working_dir = self.current_dir.joinpath(project_name) if project_name not in self.current_dir.as_posix() else self.current_dir
         self.project_name = project_name
         if not self.working_dir.exists():
             self.working_dir.mkdir(parents=True)
@@ -272,17 +275,18 @@ class PylibConfig:
         exec_shell(f'cd {self.working_dir} && git push -u origin {self.config.opt.default_branch}')
 
 
-    def build_tmpl(self, tmpl_data: Union[str, Any], filename: str, overwrite: bool = False):
+    def build_tmpl(self, tmpl_data: Union[str, Any], filename: str, overwrite: bool = False, add_to_commit: bool = True):
         if tmpl_data:
             tmpl_file = self.working_dir.joinpath(filename)
             if tmpl_file.exists() and not overwrite: pass
             logger(f'Building: {filename}')
-            tmpl_file.write_text(self.config.tmpl_setup_py)
-            self.repo_files.append(tmpl_file.as_posix())
+            tmpl_file.write_text(tmpl_data)
+            if add_to_commit:
+                self.repo_files.append(tmpl_file.as_posix())
 
     def build_base(self, overwrite: bool = False, *args, **kwargs):
         self.build_tmpl(tmpl_data = self.config.tmpl_setup_py,  filename = 'setup.py',  overwrite=overwrite)
-        self.build_tmpl(tmpl_data = self.config.tmpl_build_sh,  filename = 'build.sh',  overwrite=overwrite)
+        self.build_tmpl(tmpl_data = self.config.tmpl_build_sh,  filename = 'build.sh',  overwrite=overwrite, add_to_commit = self.config.should_add_to_commit('build.sh'))
         self.build_tmpl(tmpl_data = self.config.tmpl_requirements_txt,  filename = 'requirements.txt', overwrite=overwrite)
         self.build_tmpl(tmpl_data = self.config.tmpl_readme_md,  filename = 'README.md',  overwrite=overwrite)
         self.build_tmpl(tmpl_data = self.config.tmpl_gitignore,  filename = '.gitignore',  overwrite=overwrite)
@@ -344,12 +348,15 @@ class PylibConfig:
 
     
     def build(self, commit_msg: str = 'Initialize', overwrite: bool = False, auto_publish: bool = False, *args, **kwargs):
+        logger.info('====================================================')
+        logger.info(f'Building Repo: {self.project_name} @ {self.config.opt.default_branch}')
+        logger.info('====================================================')
         self.build_base(overwrite=overwrite, *args, **kwargs)
         self.build_pylib_structure(overwrite=overwrite, *args, **kwargs)
         self.build_github_workflows(overwrite=overwrite, *args, **kwargs)
         self.build_docker_app(overwrite=overwrite, *args, **kwargs)
         if self.repo_files:
-            logger.info(f'Adding {len(self.repo_files)} to Index')
+            logger.info(f'Adding {len(self.repo_files)} Files to Git Index')
             self.repo.index.add(self.repo_files)
         logger.info(f'Adding Commit: {commit_msg}')
         self.repo.index.commit(commit_msg)
@@ -375,7 +382,7 @@ def get_metadata_template(github: Github, name: str, repo_user: str = None, priv
     metadata['repo'] = f'{repo_user}/{name}'
     #metadata['options']['private'] = private
     metadata['setup'].update({
-        'author': caller.name,
+        'author': caller.name or repo_user,
         'email': caller.email,
         'git_repo': f'{repo_user}/{name}',
         'pkg_name': name,
