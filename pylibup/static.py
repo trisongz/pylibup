@@ -128,9 +128,10 @@ import {{ lib_name }}
 
 {%- if require_py3_version %}
 - `Python {{ require_py3_version }}`
+
 {%- endif %}
 {%- for item in requirements %}
-- `{{ item }}'`
+- `{{ item }}`
 {% endfor %}
 
 ---
@@ -157,7 +158,7 @@ rm -r build/*
 
 python setup.py sdist bdist_wheel
 
-if [[ "$UPLOAD" == "dist "]]; then
+if [[ "$UPLOAD" == "dist" ]]; then
     echo "Uploading to Dist Pypi"
     python -m twine upload --repository pypi dist/*
 else
@@ -388,6 +389,7 @@ default_metadata_setup = {
   'author': 'Tri Songz',
   'email': '',
   'git_repo': '',
+  'description': '',
   'pkg_version': '0.0.0a',
   'pkg_name': 'pylibup',
   'lib_name': 'pylibup',

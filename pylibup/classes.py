@@ -112,7 +112,7 @@ class PylibConfigData(BaseCls):
 
     @property
     def tmpl_readme_md(self):
-        if not self.readme_text: return None
+        # if not self.readme_text: return None
         tmpl = Template(readme_template)
         readme_data = self.setup or {}
         readme_data['readme_text'] = self.readme_text
@@ -383,13 +383,14 @@ def get_metadata_template(github: Github, name: str, repo_user: str = None, priv
     #metadata['options']['private'] = private
     metadata['setup'].update({
         'author': caller.name or repo_user,
+        'description': kwargs.get('description', kwargs.get('project_description')),
         'email': caller.email,
         'git_repo': f'{repo_user}',
         'pkg_name': name,
         'lib_name': kwargs.get('lib_name', name)
     })
-    metadata['project_description'] = kwargs.get('description', '')
-    metadata['readme_text'] = kwargs.get('readme_text', '')
+    metadata['project_description'] = kwargs.get('project_description', kwargs.get('description'))
+    metadata['readme_text'] = kwargs.get('readme_text', metadata['project_description'])
     if kwargs.get('secrets'):
         metadata['secrets'] = kwargs['secrets']
     #logger.info(metadata)
